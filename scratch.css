@@ -1,0 +1,18 @@
+nav,
+header,
+footer,
+.sbo-menu-top,
+.sbo-nav-top,
+.sbo-nav-bottom,
+#container > div.js-toc > div.interface-controls.interface-controls-top,
+#js-subscribe-nag {
+  display: none !important;
+}
+
+body {
+  padding: 0 !important;
+}
+
+#sbo-rt-content {
+  max-width: 100% !important;
+}
