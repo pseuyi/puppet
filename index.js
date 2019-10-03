@@ -1,51 +1,48 @@
 const puppeteer = require('puppeteer');
 const merge = require('easy-pdf-merge');
 
-const wsChromeEndpoint =
-  'ws://127.0.0.1:9222/devtools/browser/6ca1fd42-c38f-4d8c-b49d-50c847fa51cb';
-
-const pdfUrls = [
-  'https://learning.oreilly.com/library/view/programming-typescript/9781492037644/ch01.html',
-  'https://learning.oreilly.com/library/view/programming-typescript/9781492037644/ch02.html',
-];
 const pdfFiles = [];
 
-puppeteer
-  .connect({
-    browserWSEndpoint: wsChromeEndpoint,
-  })
-  .then(async browser => {
+puppeteer.launch().then(async browser => {
+  try {
     const page = await browser.newPage();
+    //    await page.setDefaultNavigationTimeout(0);
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3419.0 Safari/537.36',
+    );
 
-    for (let i = 0; i < pdfUrls.length; i++) {
-      console.log('opening up page #', i);
-      await page.goto(pdfUrls[i], {waitUntil: 'networkidle2'});
-      // await page.setViewport({width: 1280, height: 1024, deviceScaleFactor: 1});
-      // page.emulateMedia('print');
-      //
+    await login(page);
+    await page.goto(process.env.TARGET, {waitUntil: 'networkidle2'});
+
+    console.log('preparing to read!');
+    for (let i = 0; i < 10; i++) {
       const pdfFileName = `page-${i}.pdf`;
+      console.log('processing: ', pdfFileName);
       pdfFiles.push(pdfFileName);
 
-      /*
-    hack for pptr.dev docs
-    page.addStyleTag({
-      content: 'content-component {overflow-y: initial !important}',
-    });
-    */
-
+      console.log('scrolling...');
       await scrollToBottom(page);
-
       await page.pdf({
         path: pdfFileName,
         format: 'A4',
       });
 
-      await page.screenshot({path: 'test.png', fullPage: true});
+      try {
+        console.log('navigating to next page...');
+        await page.waitForSelector('.next.nav-link');
+        await page.click('.next.nav-link');
+        await page.waitForNavigation({});
+      } catch (e) {
+        console.log('something went wrong navigating: ', e);
+      }
     }
-
-    //  await browser.close();
     await mergePages(pdfFiles);
-  });
+  } catch (e) {
+    console.log('error: ', e);
+  } finally {
+    await browser.close();
+  }
+});
 
 const mergePages = pdfFiles => {
   return new Promise((resolve, reject) => {
@@ -79,4 +76,24 @@ async function scrollToBottom(page) {
       }, 100);
     });
   });
+}
+
+async function login(page) {
+  try {
+    await page.goto('https://learning.oreilly.com', {
+      waitUntil: 'networkidle2',
+    });
+    await page.waitForSelector('input[name=email]', {visible: true});
+    await page.type('input[name=email]', process.env.EMAIL);
+
+    await page.waitForSelector('input[name=password]', {visible: true});
+    await page.type('input[name=password]', process.env.PASS);
+
+    await page.waitForSelector('button', {visible: true});
+    await page.click('button');
+
+    await page.waitForNavigation();
+  } catch (e) {
+    throw new Error('trouble logging in');
+  }
 }
