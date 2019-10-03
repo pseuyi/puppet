@@ -31,7 +31,7 @@ puppeteer.launch().then(async browser => {
         console.log('navigating to next page...');
         await page.waitForSelector('.next.nav-link');
         await page.click('.next.nav-link');
-        await page.waitForNavigation({});
+        await page.waitForNavigation();
       } catch (e) {
         console.log('something went wrong navigating: ', e);
       }
@@ -46,10 +46,10 @@ puppeteer.launch().then(async browser => {
 
 const mergePages = pdfFiles => {
   return new Promise((resolve, reject) => {
-    merge(pdfFiles, 'final.pdf', function(err) {
-      if (err) {
-        console.log(err);
-        reject(err);
+    merge(pdfFiles, 'final.pdf', function(e) {
+      if (e) {
+        console.log(e);
+        reject(e);
       }
 
       console.log('finished merging pdfs');
