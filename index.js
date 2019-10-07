@@ -14,24 +14,31 @@ puppeteer.launch().then(async browser => {
     await login(page);
     await page.goto(process.env.TARGET, {waitUntil: 'networkidle2'});
 
+    await page.addStyleTag({path: './scratch.css'});
+
     console.log('preparing to read!');
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
       const pdfFileName = `page-${i}.pdf`;
       console.log('processing: ', pdfFileName);
       pdfFiles.push(pdfFileName);
 
-      console.log('scrolling...');
-      await scrollToBottom(page);
+      //console.log('scrolling...');
+      //      await scrollToBottom(page);
+
       await page.pdf({
         path: pdfFileName,
         format: 'A4',
       });
 
+      await page.waitForSelector('.next.nav-link');
+
       try {
         console.log('navigating to next page...');
-        await page.waitForSelector('.next.nav-link');
-        await page.click('.next.nav-link');
-        await page.waitForNavigation();
+
+        await page.evaluate(() => {
+          document.querySelector('.next.nav-link').click();
+        });
+        await page.waitForNavigation({timeout: 1});
       } catch (e) {
         console.log('something went wrong navigating: ', e);
       }
