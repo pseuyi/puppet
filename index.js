@@ -6,10 +6,6 @@ const pdfFiles = [];
 puppeteer.launch().then(async browser => {
   try {
     const page = await browser.newPage();
-    //    await page.setDefaultNavigationTimeout(0);
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3419.0 Safari/537.36',
-    );
 
     await login(page);
     await page.goto(process.env.TARGET, {waitUntil: 'networkidle2'});
@@ -17,32 +13,8 @@ puppeteer.launch().then(async browser => {
     await page.addStyleTag({path: './scratch.css'});
 
     console.log('preparing to read!');
-    for (let i = 0; i < 3; i++) {
-      const pdfFileName = `page-${i}.pdf`;
-      console.log('processing: ', pdfFileName);
-      pdfFiles.push(pdfFileName);
+    await processChapters(page);
 
-      //console.log('scrolling...');
-      //      await scrollToBottom(page);
-
-      await page.pdf({
-        path: pdfFileName,
-        format: 'A4',
-      });
-
-      await page.waitForSelector('.next.nav-link');
-
-      try {
-        console.log('navigating to next page...');
-
-        await page.evaluate(() => {
-          document.querySelector('.next.nav-link').click();
-        });
-        await page.waitForNavigation({timeout: 1});
-      } catch (e) {
-        console.log('something went wrong navigating: ', e);
-      }
-    }
     await mergePages(pdfFiles);
   } catch (e) {
     console.log('error: ', e);
@@ -53,7 +25,7 @@ puppeteer.launch().then(async browser => {
 
 const mergePages = pdfFiles => {
   return new Promise((resolve, reject) => {
-    merge(pdfFiles, 'final.pdf', function(e) {
+    merge(pdfFiles, 'final.pdf', e => {
       if (e) {
         console.log(e);
         reject(e);
@@ -64,26 +36,6 @@ const mergePages = pdfFiles => {
     });
   });
 };
-
-async function scrollToBottom(page) {
-  await page.evaluate(async () => {
-    let currHeight = 0;
-    const innerHeight = window.innerHeight;
-    const scrollHeight = document.body.scrollHeight;
-
-    await new Promise((resolve, reject) => {
-      const interval = setInterval(() => {
-        window.scrollBy(0, innerHeight);
-        currHeight += innerHeight;
-
-        if (currHeight >= scrollHeight) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, 100);
-    });
-  });
-}
 
 async function login(page) {
   try {
@@ -103,4 +55,53 @@ async function login(page) {
   } catch (e) {
     throw new Error('trouble logging in');
   }
+}
+
+async function processChapters(page) {
+  let chNum = 0;
+  while (await page.waitForSelector('.next.nav-link')) {
+    // do the stuff
+    const pdfFileName = `ch${chNum}.pdf`;
+    pdfFiles.push(pdfFileName);
+
+    await page.pdf({
+      path: pdfFileName,
+      format: 'A4',
+    });
+
+    chNum++;
+    await navigateToNext(page);
+  }
+}
+
+async function navigateToNext(page) {
+  try {
+    console.log('navigating to next page...');
+    await page.evaluate(() => {
+      document.querySelector('.next.nav-link').click();
+    });
+    await page.waitForNavigation({timeout: 8000});
+  } catch (e) {
+    console.log('something went wrong navigating: ', e);
+  }
+}
+
+async function scrollToBottom(page) {
+  await page.evaluate(async () => {
+    let currHeight = 0;
+    const innerHeight = window.innerHeight;
+    const scrollHeight = document.body.scrollHeight;
+
+    await new Promise((resolve, reject) => {
+      const interval = setInterval(() => {
+        window.scrollBy(0, innerHeight);
+        currHeight += innerHeight;
+
+        if (currHeight >= scrollHeight) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+    });
+  });
 }
